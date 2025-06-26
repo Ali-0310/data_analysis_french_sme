@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # Service de stockage des données avec SQLite
+  data-storage:
+    image: alpine:latest
+    container_name: sales-data-storage
+    volumes:
+      - ./data:/data
+      - ./create_database_table.py:/data/create_database_table.py
+    command: >
+      sh -c "
+        apk add --no-cache sqlite python3 py3-pip
+        pip3 install pandas
+        echo 'Service de stockage SQLite démarré'
+        echo 'Création de la base de données...'
+        python3 /data/create_database_table.py
+        echo 'Base de données créée avec succès!'
+        echo 'Données CSV montées dans /data'
+        echo 'Accès SQLite disponible'
+        tail -f /dev/null
+      "
+    ports:
+      - "8081:8081"
+    networks:
+      - sales-network
+
+  # Service d'analyse et dashboard Streamlit
+  sales-analysis:
+    build: .
+    container_name: sales-analysis-dashboard
+    depends_on:
+      - data-storage
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    command: >
+      sh -c "
+        echo 'Attente du service de stockage...'
+        sleep 5
+        echo 'Service-analyse démarré'
+        streamlit run main.py --server.port=8501 --server.address=0.0.0.0 --browser.serverAddress=localhost
+      "
+    networks:
+      - sales-network
+
+networks:
+  sales-network:
+    driver: bridge
+
+volumes:
+  data: 
