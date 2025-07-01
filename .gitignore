@@ -2,3 +2,4 @@
 pyproject.toml
 *.csv
 .dockerignore
+__pycache__/
